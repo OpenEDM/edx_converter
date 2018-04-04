@@ -21,8 +21,9 @@ class Indexer:
 class BaseCSV(metaclass=abc.ABCMeta):
     COLUMNS = []
 
-    def __init__(self, prefix, index):
-        self._file = open('{}{}.csv'.format(prefix, index), 'w')
+    def __init__(self, prefix, index, encoding):
+        self._file = open('{}{}.csv'.format(prefix, index),
+                          'w', encoding=encoding)
         self._csv = csv.writer(self._file, delimiter=';')
         self._csv.writerow(self.COLUMNS)
 
@@ -43,8 +44,8 @@ class BaseCSV(metaclass=abc.ABCMeta):
 class CSV1(BaseCSV):
     COLUMNS = ['user_id', 'item_id', 'correct', 'time']
 
-    def __init__(self, prefix):
-        super().__init__(prefix, 1)
+    def __init__(self, prefix, encoding):
+        super().__init__(prefix, 1, encoding)
 
     def process(self, indexer, grade_report, logs, ora):
         for (userid, tasks) in logs.submits.items():
@@ -61,8 +62,8 @@ class CSV2(BaseCSV):
     COLUMNS = ['item_id', 'item_type', 'item_name', 'module_id',
                'module_order', 'module_name']
 
-    def __init__(self, prefix):
-        super().__init__(prefix, 2)
+    def __init__(self, prefix, encoding):
+        super().__init__(prefix, 2, encoding)
 
     @staticmethod
     def task_type(taskid):
@@ -81,8 +82,8 @@ class CSV2(BaseCSV):
 class CSV3(BaseCSV):
     COLUMNS = ['user_id', 'content_piece_id', 'viewed']
 
-    def __init__(self, prefix):
-        super().__init__(prefix, 3)
+    def __init__(self, prefix, encoding):
+        super().__init__(prefix, 3, encoding)
 
     def process(self, indexer, grade_report, logs, ora):
         for userid in grade_report.get_userids():
@@ -96,8 +97,8 @@ class CSV4(BaseCSV):
     COLUMNS = ['content_piece_id', 'content_piece_type', 'content_piece_name',
                'module_id', 'module_order', 'module_name']
 
-    def __init__(self, prefix):
-        super().__init__(prefix, 4)
+    def __init__(self, prefix, encoding):
+        super().__init__(prefix, 4, encoding)
 
     def process(self, indexer, grade_report, logs, ora):
         for (videoid, moduleid) in logs.videos.items():
@@ -110,8 +111,8 @@ class CSV4(BaseCSV):
 class CSV5(BaseCSV):
     COLUMNS = ['user_id', 'item_id', 'reviewer_id', 'score', 'max_score']
 
-    def __init__(self, prefix):
-        super().__init__(prefix, 5)
+    def __init__(self, prefix, encoding):
+        super().__init__(prefix, 5, encoding)
 
     def process(self, indexer, grade_report, logs, ora):
         for (submission_id, (userid, taskid)) in logs.submissions.items():
@@ -122,9 +123,9 @@ class CSV5(BaseCSV):
                        score, maxscore)
 
 
-def process_all_csvs(prefix, grade_report, logs, ora):
+def process_all_csvs(prefix, encoding, grade_report, logs, ora):
     indexer = Indexer()
 
     for processor in (CSV1, CSV2, CSV3, CSV4, CSV5):
-        with processor(prefix) as p:
+        with processor(prefix, encoding) as p:
             p.process(indexer, grade_report, logs, ora)

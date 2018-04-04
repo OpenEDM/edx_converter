@@ -40,7 +40,7 @@ def main():
     with open(params.logs, encoding=params.encoding) as f:
         logs = LogParser(f, params.threshold)
 
-    process_all_csvs(params.output, grade_report, logs, ora_report)
+    process_all_csvs(params.output, params.encoding, grade_report, logs, ora_report)
 
 
 if __name__ == '__main__':
