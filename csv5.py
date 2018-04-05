@@ -49,12 +49,11 @@ class CSV1(BaseCSV):
 
     def process(self, indexer, grade_report, logs, ora):
         for (userid, tasks) in logs.submits.items():
-            # print(tasks.items())
             for (taskid, tries) in tasks.items():
                 if 'type@problem' not in taskid:
                     continue
                 for (_, correct, time) in tries:
-                    self.write(userid, indexer.get('task', taskid),
+                    self.write(userid, taskid,
                                correct, time)
 
 
@@ -74,7 +73,7 @@ class CSV2(BaseCSV):
     def process(self, indexer, grade_report, logs, ora):
         for (taskid, (taskname, moduleid)) in logs.problems.items():
             self.write(
-                indexer.get('task', taskid), self.task_type(taskid),
+                taskid, self.task_type(taskid),
                 taskname, indexer.get('module', moduleid),
                 indexer.get('module', moduleid, True), moduleid)
 
@@ -119,7 +118,7 @@ class CSV5(BaseCSV):
             if submission_id not in logs.assessors:
                 continue
             (reviewerid, score, maxscore) = logs.assessors[submission_id]
-            self.write(userid, indexer.get('task', taskid), reviewerid,
+            self.write(userid, taskid, reviewerid,
                        score, maxscore)
 
 
