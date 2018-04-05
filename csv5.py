@@ -1,21 +1,11 @@
 import abc
-import collections
+import contextlib
 import csv
+import logging
+import operator
 
 
 __all__ = ['process_all_csvs']
-
-
-class Indexer:
-    def __init__(self):
-        self._ids = collections.defaultdict(dict)
-
-    def get(self, kind, key, index=False):
-        if key not in self._ids[kind]:
-            self._ids[kind][key] = len(self._ids[kind]) + 1
-        if index:
-            return self._ids[kind][key]
-        return '{}_{}'.format(kind, self._ids[kind][key])
 
 
 class BaseCSV(metaclass=abc.ABCMeta):
@@ -25,13 +15,22 @@ class BaseCSV(metaclass=abc.ABCMeta):
         self._file = open('{}{}.csv'.format(prefix, index),
                           'w', encoding=encoding)
         self._csv = csv.writer(self._file, delimiter=';')
-        self._csv.writerow(self.COLUMNS)
+        self._csv.writerow(map(operator.itemgetter(0), self.COLUMNS))
 
     def write(self, *items):
-        self._csv.writerow(map(str, items))
+        row = tuple(map(str, items))
+        for (item, (name, checker)) in zip(row, self.COLUMNS):
+            if not checker(item):
+                logging.warning('Invalid item "%s" in %s. Skip', name, row)
+                return
+        self._csv.writerow(row)
+
+    def writeiter(self, iterable):
+        for item in iterable:
+            self.write(*item)
 
     @abc.abstractmethod
-    def process(self, indexer, grade_report, logs, ora):
+    def process(self, logs, grade_report, ora):
         pass
 
     def __enter__(self):
@@ -41,90 +40,110 @@ class BaseCSV(metaclass=abc.ABCMeta):
         self._file.close()
 
 
+class Checkers:
+    @staticmethod
+    def nonempty(value):
+        return bool(value)
+
+    @staticmethod
+    def zero_or_one(value):
+        return set(value) in ('0', '1')
+
+    @staticmethod
+    def positive_int(value):
+        with contextlib.suppress(ValueError):
+            return int(value) > 0
+        return False
+
+    @staticmethod
+    def nonnegative_int(value):
+        with contextlib.suppress(ValueError):
+            return int(value) >= 0
+        return False
+
+
+class Items:
+    USER_ID = ('user_id', Checkers.nonempty)
+    REVIEWER_ID = ('reviewer_id', Checkers.nonempty)
+
+    ITEM_ID = ('item_id', Checkers.nonempty)
+    ITEM_TYPE = ('item_type', Checkers.nonempty)
+    ITEM_NAME = ('item_name', Checkers.nonempty)
+
+    CONTENT_ID = ('content_piece_id', Checkers.nonempty)
+    CONTENT_TYPE = ('content_piece_type', Checkers.nonempty)
+    CONTENT_NAME = ('content_piece_name', Checkers.nonempty)
+
+    MODULE_ID = ('module_id', Checkers.nonempty)
+    MODULE_ORDER = ('module_order', Checkers.positive_int)
+    MODULE_NAME = ('module_name', Checkers.nonempty)
+
+    SCORE = ('score', Checkers.nonnegative_int)
+    MAX_SCORE = ('max_score', Checkers.positive_int)
+
+    CORRECT = ('correct', Checkers.zero_or_one)
+    VIEWED = ('viewed', Checkers.zero_or_one)
+    TIME = ('time', Checkers.nonempty)
+
+
 class CSV1(BaseCSV):
-    COLUMNS = ['user_id', 'item_id', 'correct', 'time']
+    COLUMNS = [
+        Items.USER_ID, Items.ITEM_ID, Items.CORRECT, Items.TIME]
 
     def __init__(self, prefix, encoding):
         super().__init__(prefix, 1, encoding)
 
-    def process(self, indexer, grade_report, logs, ora):
-        for (userid, tasks) in logs.submits.items():
-            for (taskid, tries) in tasks.items():
-                if 'type@problem' not in taskid:
-                    continue
-                for (_, correct, time) in tries:
-                    self.write(userid, taskid,
-                               correct, time)
+    def process(self, logs, grade_report, ora):
+        self.writeiter(logs.get_student_solutions())
 
 
 class CSV2(BaseCSV):
-    COLUMNS = ['item_id', 'item_type', 'item_name', 'module_id',
-               'module_order', 'module_name']
+    COLUMNS = [
+        Items.ITEM_ID, Items.ITEM_TYPE, Items.ITEM_NAME,
+        Items.MODULE_ID, Items.MODULE_ORDER, Items.MODULE_NAME]
 
     def __init__(self, prefix, encoding):
         super().__init__(prefix, 2, encoding)
 
-    @staticmethod
-    def task_type(taskid):
-        if 'type@problem' in taskid:
-            return 'MCQ'
-        return 'PR'
-
-    def process(self, indexer, grade_report, logs, ora):
-        for (taskid, (taskname, moduleid)) in logs.problems.items():
-            self.write(
-                taskid, self.task_type(taskid),
-                taskname, indexer.get('module', moduleid),
-                indexer.get('module', moduleid, True), moduleid)
+    def process(self, logs, grade_report, ora):
+        self.writeiter(logs.get_tasks())
 
 
 class CSV3(BaseCSV):
-    COLUMNS = ['user_id', 'content_piece_id', 'viewed']
+    COLUMNS = [Items.USER_ID, Items.CONTENT_ID, Items.VIEWED]
 
     def __init__(self, prefix, encoding):
         super().__init__(prefix, 3, encoding)
 
-    def process(self, indexer, grade_report, logs, ora):
-        for userid in grade_report.get_userids():
-            viewed = logs.viewed_content['video'].get(userid, set())
-            for videoid in logs.videos:
-                self.write(userid, indexer.get('video', videoid),
-                           int(videoid in viewed))
+    def process(self, logs, grade_report, ora):
+        self.writeiter(logs.get_student_content())
 
 
 class CSV4(BaseCSV):
-    COLUMNS = ['content_piece_id', 'content_piece_type', 'content_piece_name',
-               'module_id', 'module_order', 'module_name']
+    COLUMNS = [
+        Items.CONTENT_ID, Items.CONTENT_TYPE, Items.CONTENT_NAME,
+        Items.MODULE_ID, Items.MODULE_ORDER, Items.MODULE_NAME]
 
     def __init__(self, prefix, encoding):
         super().__init__(prefix, 4, encoding)
 
-    def process(self, indexer, grade_report, logs, ora):
-        for (videoid, moduleid) in logs.videos.items():
-            self.write(
-                indexer.get('video', videoid), 'video', videoid,
-                indexer.get('module', moduleid),
-                indexer.get('module', moduleid, True), moduleid)
+    def process(self, logs, grade_report, ora):
+        self.writeiter(logs.get_content())
 
 
 class CSV5(BaseCSV):
-    COLUMNS = ['user_id', 'item_id', 'reviewer_id', 'score', 'max_score']
+    COLUMNS = [
+        Items.USER_ID, Items.ITEM_ID, Items.REVIEWER_ID,
+        Items.SCORE, Items.MAX_SCORE]
 
     def __init__(self, prefix, encoding):
         super().__init__(prefix, 5, encoding)
 
-    def process(self, indexer, grade_report, logs, ora):
-        for (submission_id, (userid, taskid)) in logs.submissions.items():
-            if submission_id not in logs.assessors:
-                continue
-            (reviewerid, score, maxscore) = logs.assessors[submission_id]
-            self.write(userid, taskid, reviewerid,
-                       score, maxscore)
+    def process(self, logs, grade_report, ora):
+        self.writeiter(logs.get_assessments())
 
 
-def process_all_csvs(prefix, encoding, grade_report, logs, ora):
-    indexer = Indexer()
-
+def process_all_csvs(prefix, encoding, logs, grade_report, ora):
     for processor in (CSV1, CSV2, CSV3, CSV4, CSV5):
         with processor(prefix, encoding) as p:
-            p.process(indexer, grade_report, logs, ora)
+            p.process(logs, grade_report, ora)
