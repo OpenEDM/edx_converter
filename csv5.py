@@ -47,7 +47,7 @@ class Checkers:
 
     @staticmethod
     def zero_or_one(value):
-        return set(value) in ('0', '1')
+        return str(value) in ('0', '1')
 
     @staticmethod
     def positive_int(value):

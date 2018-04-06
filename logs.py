@@ -216,7 +216,7 @@ class LogParser:
     def _parse(self, file):
         for (i, line) in enumerate(file):
             try:
-                item = json.loads(line.split(':', maxsplit=1)[-1], i)
+                item = json.loads(line.split(':', maxsplit=1)[-1])
                 LogParser.handler(self, item)
             except Exception as e:
                 logging.warning('Error on process entry, line %d: %s', i, e)
@@ -257,7 +257,7 @@ class LogParser:
             module = self.modules.modules[self.modules.tasks[task_id]]
             if task_id in self.tasks.tasks:
                 for subtask in self.tasks.tasks[task_id]:
-                    text = self.tasks.subtask_text.get(subtask, subtask)
+                    text = self.tasks.subtask_text.get(subtask) or 'NA'
                     yield (subtask, self.tasks.subtask_type[subtask],
                            text, *module)
             if task_id in self.tasks.assessments:
@@ -268,4 +268,4 @@ class LogParser:
         for (content_type, content) in self.content.content.items():
             for contentid in content:
                 module = self.modules.modules[self.modules.content[contentid]]
-                yield (contentid, content_type, contentid, *module)
+                yield (contentid, content_type, 'NA', *module)
