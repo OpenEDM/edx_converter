@@ -70,18 +70,18 @@ class LogsTest(unittest.TestCase):
              ('15', 't1', 1, '02.01.2018 10:00:00')})
         self.assertSetEqual(
             set(report.get_tasks()),
-            {('t1', 'type', 'QQ', 'module-2', 2, 'm2'),
-             ('block-v1:a+b+type@openassessment+block@bb', 'PR', 'aa',
-              'module-2', 2, 'm2')})
+            {('t1', 'type', 'QQ', '2', 2, 'm2'),
+             ('bb', 'openassessment', 'aa',
+              '2', 2, 'm2')})
         self.assertSetEqual(
             set(report.get_student_content()),
             {('uu', 'v1', 1)})
         self.assertSetEqual(
             set(report.get_content()),
-            {('v1', 'video', 'v1', 'module-1', 1, 'm1')})
+            {('v1', 'video', 'NA', '1', 1, 'm1')})
         self.assertSetEqual(
             set(report.get_assessments()),
-            {('uu', 'block-v1:a+b+type@openassessment+block@bb', 'u2', 3, 5)})
+            {('uu', 'bb', 'u2', 3, 5)})
 
 
 if __name__ == '__main__':

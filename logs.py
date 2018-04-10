@@ -28,6 +28,12 @@ def iscollection(type_):
     return isinstance(type_, (tuple, list, set, frozenset))
 
 
+def last_nonempty(data):
+    for item in reversed(data):
+        if item:
+            return item
+
+
 class Registry:
     _NULL = object()
 
@@ -124,11 +130,11 @@ class Modules:
         self.content[content_id] = link
 
     def create_index(self):
-        using = sorted(set(self.tasks.values()) | set(self.content.values()))
-        for (index, link) in enumerate(using):
+        used = sorted(set(self.tasks.values()) | set(self.content.values()))
+        for (index, link) in enumerate(used):
             name = self.modules.get(link)
-            self.modules[link] = (
-                'module-{}'.format(index + 1), index + 1, name)
+            moduleid = last_nonempty(link.split('/'))
+            self.modules[link] = (moduleid, index + 1, name)
 
 
 class Content:
@@ -244,6 +250,7 @@ class LogParser:
     def get_assessments(self):
         for submission_id in self.users.pr_submits:
             (user_id, problem_id) = self.users.pr_submits[submission_id]
+            problem_id = problem_id.split('@')[-1]
             assessments = self.users.assessments[submission_id]
             for (reviewer, score, max_score) in assessments:
                 yield (user_id, problem_id, reviewer, score, max_score)
@@ -262,7 +269,7 @@ class LogParser:
                            text, *module)
             if task_id in self.tasks.assessments:
                 name = self.tasks.assessments[task_id]
-                yield (task_id, 'PR', name, *module)
+                yield (task_id.split('@')[-1], 'openassessment', name, *module)
 
     def get_content(self):
         for (content_type, content) in self.content.content.items():
