@@ -1,17 +1,6 @@
 import contextlib
 
 
-def to_float(value):
-    with contextlib.suppress(ValueError):
-        return float(value)
-    return 0
-
-
-def binarize(value, threshold):
-    value = to_float(value)
-    return (value, int(value >= threshold))
-
-
 def get_item(data, item, *, type_=str):
     if '.' in item:
         (name, rest) = item.split('.', maxsplit=1)
