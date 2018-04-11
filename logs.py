@@ -24,14 +24,12 @@ def normalize_module_url(url):
     return (MODULE_URL.findall(url) or [''])[0]
 
 
+def get_module_id(url):
+    return list(filter(None, url.split('/')))[-2]
+
+
 def iscollection(type_):
     return isinstance(type_, (tuple, list, set, frozenset))
-
-
-def last_nonempty(data):
-    for item in reversed(data):
-        if item:
-            return item
 
 
 class Registry:
@@ -116,25 +114,18 @@ class Modules:
         self.tasks = utils.NonEmptyDict()
         self.content = utils.NonEmptyDict()
 
-    def add_module(self, link, name):
-        link = normalize_module_url(link)
-        if link not in self.modules:
-            self.modules[link] = name
-
     def add_task(self, link, problem_id):
-        link = normalize_module_url(link)
+        link = get_module_id(normalize_module_url(link))
         self.tasks[problem_id] = link
 
     def add_content(self, link, content_id):
-        link = normalize_module_url(link)
+        link = get_module_id(normalize_module_url(link))
         self.content[content_id] = link
 
     def create_index(self):
         used = sorted(set(self.tasks.values()) | set(self.content.values()))
         for (index, link) in enumerate(used):
-            name = self.modules.get(link)
-            moduleid = last_nonempty(link.split('/'))
-            self.modules[link] = (moduleid, index + 1, name)
+            self.modules[link] = (link, index + 1, 'NA')
 
 
 class Content:
@@ -148,11 +139,13 @@ class Content:
 class LogParser:
     handler = Registry()
 
+    """
     @handler.add(event_type='edx.ui.lms.outline.selected')
     def _outline_selected(self, item):
         event = json.loads(get_item(item, 'event'))
         (url, name) = get_items(event, ['target_url', 'target_name'])
         self.modules.add_module(url, name)
+    """
 
     @handler.add(event_type=['load_video', 'edx.video.loaded'])
     def _load_video(self, item):
