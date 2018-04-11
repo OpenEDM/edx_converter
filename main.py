@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import os.path
 import sys
 
 from gradereport import GradeReportParser
@@ -38,9 +39,13 @@ def main():
         ora_report = ORAParser(None)
 
     with open(params.logs, encoding=params.encoding) as f:
-        logs = LogParser(f, params.threshold)
+        logs = LogParser(f)
 
-    process_all_csvs(params.output, params.encoding, grade_report, logs, ora_report)
+    if os.path.isdir(params.output):
+        params.output = os.path.join(params.output, 'csv')
+
+    process_all_csvs(
+        params.output, params.encoding, logs, grade_report, ora_report)
 
 
 if __name__ == '__main__':

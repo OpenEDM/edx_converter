@@ -50,24 +50,38 @@ AB,2,aa,10:00,"scorer_id: a14",14,14
 
 
 class LogsTest(unittest.TestCase):
-    DATA = r"""1:{"event_type": "load_video", "event": "{\"id\": \"v1\"}", "page": "course-v1:a+b/courseware/aa/bb"}
-2:{"event_type": "play_video", "event": "{\"id\": \"v1\"}", "context": {"user_id": "uu"}}
-3:{"event_type": "edx.grades.problem.submitted", "referer": "course-v1:a+b/courseware/aa/c", "time": "2018-01-02T09:30:00.000000", "context": {"module": {"display_name": "Test 1"}}, "event": {"user_id": 15, "problem_id": "pp", "weighted_earned": 5, "weighted_possible": 10}}
-4:{"event_type": "edx.grades.problem.submitted", "referer": "course-v1:a+b/courseware/aa/c", "time": "2018-01-02T10:00:00.000000", "context": {"module": {"display_name": "Test 1"}}, "event": {"user_id": 15, "problem_id": "pp", "weighted_earned": 8, "weighted_possible": 10}}
-5:{"event_type": "openassessmentblock.create_submission", "context": {"user_id": "uu", "module": {"usage_key": "block-v1:a+b+type@openassessment+block@bb"}}, "event": {"submission_uuid": "ps1"}}
-6:{"event_type": "openassessmentblock.peer_assess", "context": {"user_id": "u2"}, "event": {"submission_uuid": "ps1", "parts": [{"option": {"points": 2}, "criterion": {"points_possible": 3}}, {"option": {"points": 1}, "criterion": {"points_possible": 2}}]}}""".split('\n')
+    DATA = r"""1:{"event_type": "edx.ui.lms.outline.selected", "event": "{\"target_url\": \"https://pages.local/1/\", \"target_name\": \"m1\"}"}
+2:{"event_type": "load_video", "event": "{\"id\": \"v1\"}", "page": "https://pages.local/1/?opt"}
+3:{"event_type": "play_video", "event": "{\"id\": \"v1\"}", "context": {"user_id": "uu"}}
+4:{"event_type": "edx.ui.lms.outline.selected", "event": "{\"target_url\": \"https://pages.local/2/\", \"target_name\": \"m2\"}"}
+5:{"event_type": "edx.grades.problem.submitted", "referer": "https://pages.local/2/", "time": "2018-01-02T09:30:00.000000", "context": {"user_id": "15"}, "event": {"problem_id": "pp"}}
+6:{"event_type": "problem_check", "event_source": "server", "event": {"problem_id": "pp", "submission": {"t1": {"question": "", "response_type": "type", "correct": false}}}, "context": {"user_id": "15"}}
+7:{"event_type": "edx.grades.problem.submitted", "referer": "https://pages.local/2/#qq", "time": "2018-01-02T10:00:00.000000", "context": {"user_id": "15"}, "event": {"problem_id": "pp"}}
+8:{"event_type": "problem_check", "event_source": "server", "event": {"problem_id": "pp", "submission": {"t1": {"question": "QQ", "response_type": "type", "correct": true}}}, "context": {"user_id": "15"}}
+9:{"event_type": "openassessmentblock.create_submission", "context": {"user_id": "uu", "module": {"usage_key": "block-v1:a+b+type@openassessment+block@bb", "display_name": "aa"}}, "event": {"submission_uuid": "ps1"}, "referer": "https://pages.local/2/"}
+10:{"event_type": "openassessmentblock.peer_assess", "context": {"user_id": "u2"}, "event": {"submission_uuid": "ps1", "parts": [{"option": {"points": 2}, "criterion": {"points_possible": 3}}, {"option": {"points": 1}, "criterion": {"points_possible": 2}}]}}""".split('\n')
 
     def test_parse(self):
-        report = LogParser(self.DATA, 0.7)
-        self.assertDictEqual(report.videos, {'v1': 'aa'})
-        self.assertDictEqual(report.viewed_content['video'], {'uu': {'v1'}})
-        self.assertDictEqual(report.problems, {'pp': ('Test 1', 'aa')})
-        self.assertDictEqual(report.submits['15'], {
-            'pp': [(0.5, 0, '02.01.2018 09:30:00'),
-                   (0.8, 1, '02.01.2018 10:00:00')]})
-        self.assertDictEqual(report.submissions, {
-            'ps1': ('uu', 'block-v1:a+b+type@openassessment+block@bb')})
-        self.assertDictEqual(report.assessors, {'ps1': ('u2', 3, 5)})
+        report = LogParser(self.DATA)
+
+        self.assertSetEqual(
+            set(report.get_student_solutions()),
+            {('15', 't1', 0, '02.01.2018 09:30:00'),
+             ('15', 't1', 1, '02.01.2018 10:00:00')})
+        self.assertSetEqual(
+            set(report.get_tasks()),
+            {('t1', 'type', 'QQ', '2', 2, 'm2'),
+             ('bb', 'openassessment', 'aa',
+              '2', 2, 'm2')})
+        self.assertSetEqual(
+            set(report.get_student_content()),
+            {('uu', 'v1', 1)})
+        self.assertSetEqual(
+            set(report.get_content()),
+            {('v1', 'video', 'NA', '1', 1, 'm1')})
+        self.assertSetEqual(
+            set(report.get_assessments()),
+            {('uu', 'bb', 'u2', 3, 5)})
 
 
 if __name__ == '__main__':
