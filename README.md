@@ -14,15 +14,30 @@
 
 Парсер преобразует логи EdX в формат 5CSV.
 
+### Формат данных
+
+Парсер работает со следующими данными:
+
+    1. Лог-файл EdX
+
+        Описание формата файла доступно по [ссылке](http://edx.readthedocs.io/projects/devdata/en/stable/internal_data_formats/tracking_logs.html).
+
+    1. Структура курсов
+
+        Файл имеет текстовый формат. Строки выглядят следующим образом:
+
+        `course_id+type@chapter+block@block_id;...;Название_модуля`
+
 ### Запуск
 
 1. Запустить парсер
 
     ```
-    $ python main.py --logs ../data/logs csv
+    $ python main.py --logs ../data/logs --course ../data/course csv
     ```
 
-    Файл `../data/logs` — лог-файл EdX (в текстовом формате)
+    * Файл `../data/logs` — лог-файл EdX (в текстовом формате)
+    * Файл `../data/course` — файл структуры курсов (в текстовом формате). Может отсутствовать.
 
 1. Результатом работы будут файлы `csv{1..5}.csv` в текущем каталоге
 
@@ -30,7 +45,7 @@
 
 Для изменения каталога вывода результата его нужно передать последним аргументом при запуске:
 ```
-$ python main.py --logs ../data/logs my/catalog/
+$ python main.py --logs ../data/logs --course ../data/course my/catalog/
 ```
 
 Результатом будут файлы `my/catalog/csv{1..5}.csv`.
