@@ -1,4 +1,5 @@
 import collections
+import csv
 import json
 import logging
 import re
@@ -109,10 +110,12 @@ class Tasks:
 
 
 class Modules:
-    def __init__(self):
-        self.modules = utils.NonEmptyDict()
+    def __init__(self, course):
+        self.modules = collections.OrderedDict()
         self.tasks = utils.NonEmptyDict()
         self.content = utils.NonEmptyDict()
+        self.module_index = {}
+        self._parse_course(course)
 
     def add_task(self, link, problem_id):
         link = get_module_id(normalize_module_url(link))
@@ -122,10 +125,30 @@ class Modules:
         link = get_module_id(normalize_module_url(link))
         self.content[content_id] = link
 
+    def get_task_module(self, problem_id):
+        return self.module_index[self.tasks[problem_id]]
+
+    def get_content_module(self, content_id):
+        return self.module_index[self.content[content_id]]
+
     def create_index(self):
-        used = sorted(set(self.tasks.values()) | set(self.content.values()))
-        for (index, link) in enumerate(used):
-            self.modules[link] = (link, index + 1, 'NA')
+        used = set(self.tasks.values()) | set(self.content.values())
+        for (moduleid, name) in self.modules.items():
+            if moduleid in used:
+                self._add_to_index(moduleid, name)
+                used.remove(moduleid)
+
+        for moduleid in used:
+            self._add_to_index(moduleid, '')
+
+    def _parse_course(self, course):
+        for (chapter, *_, name) in csv.reader(course, delimiter=';'):
+            chapterid = chapter.split('@')[-1]
+            self.modules[chapterid] = name.strip()
+
+    def _add_to_index(self, moduleid, name):
+        self.module_index[moduleid] = (
+            moduleid, len(self.module_index) + 1, name or 'NA')
 
 
 class Content:
@@ -138,14 +161,6 @@ class Content:
 
 class LogParser:
     handler = Registry()
-
-    """
-    @handler.add(event_type='edx.ui.lms.outline.selected')
-    def _outline_selected(self, item):
-        event = json.loads(get_item(item, 'event'))
-        (url, name) = get_items(event, ['target_url', 'target_name'])
-        self.modules.add_module(url, name)
-    """
 
     @handler.add(event_type=['load_video', 'edx.video.loaded'])
     def _load_video(self, item):
@@ -203,17 +218,17 @@ class LogParser:
             for score in scores)
         self.users.assess(submission_id, user_id, points, max_points)
 
-    def __init__(self, file):
+    def __init__(self, log, course):
         self.users = Users()
         self.tasks = Tasks()
-        self.modules = Modules()
+        self.modules = Modules(course)
         self.content = Content()
 
-        self._parse(file)
+        self._parse(log)
         self.modules.create_index()
 
-    def _parse(self, file):
-        for (i, line) in enumerate(file):
+    def _parse(self, log):
+        for (i, line) in enumerate(log):
             try:
                 item = json.loads(line.split(':', maxsplit=1)[-1])
                 LogParser.handler(self, item)
@@ -254,7 +269,7 @@ class LogParser:
             for taskid in task_ids:
                 yield from self.get_tasks(taskid)
         else:
-            module = self.modules.modules[self.modules.tasks[task_id]]
+            module = self.modules.get_task_module(task_id)
             if task_id in self.tasks.tasks:
                 for subtask in self.tasks.tasks[task_id]:
                     text = self.tasks.subtask_text.get(subtask) or 'NA'
@@ -266,6 +281,6 @@ class LogParser:
 
     def get_content(self):
         for (content_type, content) in self.content.content.items():
-            for contentid in content:
-                module = self.modules.modules[self.modules.content[contentid]]
-                yield (contentid, content_type, 'NA', *module)
+            for content_id in content:
+                module = self.modules.get_content_module(content_id)
+                yield (content_id, content_type, 'NA', *module)

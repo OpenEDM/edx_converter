@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import contextlib
 import os.path
 import sys
 
@@ -13,21 +14,31 @@ def parse_args():
     parser.add_argument(
         '--encoding', type=str, default='utf8', help='Files encoding')
     parser.add_argument('--logs', type=str, required=True, help='Log file')
+    parser.add_argument('--course', type=str, help='Course structure file')
     parser.add_argument('output', type=str, help='Output csv prefix')
     return parser.parse_args()
+
+
+@contextlib.contextmanager
+def try_open(filename, **kwargs):
+    if filename:
+        yield open(filename, **kwargs)
+    else:
+        yield []
 
 
 def main():
     params = parse_args()
 
-    with open(params.logs, encoding=params.encoding) as f:
-        logs = LogParser(f)
+    with open(params.logs, encoding=params.encoding) as logfile:
+        with try_open(params.course, encoding=params.encoding) as coursefile:
+            parser = LogParser(logfile, coursefile)
 
     if os.path.isdir(params.output):
         params.output = os.path.join(params.output, 'csv')
 
     process_all_csvs(
-        params.output, params.encoding, logs)
+        params.output, params.encoding, parser)
 
 
 if __name__ == '__main__':

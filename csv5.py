@@ -30,7 +30,7 @@ class BaseCSV(metaclass=abc.ABCMeta):
             self.write(*item)
 
     @abc.abstractmethod
-    def process(self, logs):
+    def process(self, parser):
         pass
 
     def __enter__(self):
@@ -93,8 +93,8 @@ class CSV1(BaseCSV):
     def __init__(self, prefix, encoding):
         super().__init__(prefix, 1, encoding)
 
-    def process(self, logs):
-        self.writeiter(logs.get_student_solutions())
+    def process(self, parser):
+        self.writeiter(parser.get_student_solutions())
 
 
 class CSV2(BaseCSV):
@@ -105,8 +105,8 @@ class CSV2(BaseCSV):
     def __init__(self, prefix, encoding):
         super().__init__(prefix, 2, encoding)
 
-    def process(self, logs):
-        self.writeiter(logs.get_tasks())
+    def process(self, parser):
+        self.writeiter(parser.get_tasks())
 
 
 class CSV3(BaseCSV):
@@ -115,8 +115,8 @@ class CSV3(BaseCSV):
     def __init__(self, prefix, encoding):
         super().__init__(prefix, 3, encoding)
 
-    def process(self, logs):
-        self.writeiter(logs.get_student_content())
+    def process(self, parser):
+        self.writeiter(parser.get_student_content())
 
 
 class CSV4(BaseCSV):
@@ -127,8 +127,8 @@ class CSV4(BaseCSV):
     def __init__(self, prefix, encoding):
         super().__init__(prefix, 4, encoding)
 
-    def process(self, logs):
-        self.writeiter(logs.get_content())
+    def process(self, parser):
+        self.writeiter(parser.get_content())
 
 
 class CSV5(BaseCSV):
@@ -139,11 +139,11 @@ class CSV5(BaseCSV):
     def __init__(self, prefix, encoding):
         super().__init__(prefix, 5, encoding)
 
-    def process(self, logs):
-        self.writeiter(logs.get_assessments())
+    def process(self, parser):
+        self.writeiter(parser.get_assessments())
 
 
-def process_all_csvs(prefix, encoding, logs):
+def process_all_csvs(prefix, encoding, parser):
     for processor in (CSV1, CSV2, CSV3, CSV4, CSV5):
         with processor(prefix, encoding) as p:
-            p.process(logs)
+            p.process(parser)
