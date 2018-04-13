@@ -121,9 +121,7 @@ def course_parser(courses):
             continue
 
         (chapter, *middle, name) = item
-        subblock = ';'.join(middle)
-        if any(map(lambda t: t in subblock, TASK_TYPES)):
-            yield (get_id(chapter), name.strip())
+        yield (get_id(chapter), name.strip())
 
 
 class Modules:
