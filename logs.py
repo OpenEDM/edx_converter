@@ -13,6 +13,7 @@ __all__ = ['LogParser']
 
 
 MODULE_URL = re.compile(r'([^#?]*/)')
+TASK_TYPES = ('type@problem', 'type@openassessment')
 
 
 def convert_datetime(timestr):
@@ -23,6 +24,10 @@ def convert_datetime(timestr):
 
 def normalize_module_url(url):
     return (MODULE_URL.findall(url) or [''])[0]
+
+
+def get_id(edx_id):
+    return edx_id.split('@')[-1]
 
 
 def get_module_id(url):
@@ -109,13 +114,24 @@ class Tasks:
         self.assessments[problem_id] = name
 
 
+def course_parser(courses):
+    for (i, item) in enumerate(csv.reader(courses, delimiter=';')):
+        if len(item) < 2:
+            logging.warning('Invalid line %d in course file', i)
+            continue
+
+        (chapter, *middle, name) = item
+        subblock = ';'.join(middle)
+        if any(map(lambda t: t in subblock, TASK_TYPES)):
+            yield (get_id(chapter), name.strip())
+
+
 class Modules:
     def __init__(self, course):
-        self.modules = collections.OrderedDict()
+        self.modules = collections.OrderedDict(course_parser(course))
         self.tasks = utils.NonEmptyDict()
         self.content = utils.NonEmptyDict()
         self.module_index = {}
-        self._parse_course(course)
 
     def add_task(self, link, problem_id):
         link = get_module_id(normalize_module_url(link))
@@ -126,25 +142,20 @@ class Modules:
         self.content[content_id] = link
 
     def get_task_module(self, problem_id):
-        return self.module_index[self.tasks[problem_id]]
+        return self.module_index.get(self.tasks[problem_id], None)
 
     def get_content_module(self, content_id):
-        return self.module_index[self.content[content_id]]
+        return self.module_index.get(self.content[content_id], None)
 
     def create_index(self):
         used = set(self.tasks.values()) | set(self.content.values())
-        for (moduleid, name) in self.modules.items():
-            if moduleid in used:
-                self._add_to_index(moduleid, name)
-                used.remove(moduleid)
-
-        for moduleid in used:
-            self._add_to_index(moduleid, '')
-
-    def _parse_course(self, course):
-        for (chapter, *_, name) in csv.reader(course, delimiter=';'):
-            chapterid = chapter.split('@')[-1]
-            self.modules[chapterid] = name.strip()
+        if self.modules:
+            for (moduleid, name) in self.modules.items():
+                if moduleid in used:
+                    self._add_to_index(moduleid, name)
+        else:
+            for moduleid in used:
+                self._add_to_index(moduleid, '')
 
     def _add_to_index(self, moduleid, name):
         self.module_index[moduleid] = (
@@ -253,12 +264,13 @@ class LogParser:
             viewed = self.users.viewed_content[user_id]
             for (_, content) in self.content.content.items():
                 for content_id in content:
-                    yield (user_id, content_id, int(content_id in viewed))
+                    if self.modules.get_content_module(content_id):
+                        yield (user_id, content_id, int(content_id in viewed))
 
     def get_assessments(self):
         for submission_id in self.users.pr_submits:
             (user_id, problem_id) = self.users.pr_submits[submission_id]
-            problem_id = problem_id.split('@')[-1]
+            problem_id = get_id(problem_id)
             assessments = self.users.assessments[submission_id]
             for (reviewer, score, max_score) in assessments:
                 yield (user_id, problem_id, reviewer, score, max_score)
@@ -270,6 +282,8 @@ class LogParser:
                 yield from self.get_tasks(taskid)
         else:
             module = self.modules.get_task_module(task_id)
+            if not module:
+                return
             if task_id in self.tasks.tasks:
                 for subtask in self.tasks.tasks[task_id]:
                     text = self.tasks.subtask_text.get(subtask) or 'NA'
@@ -277,10 +291,11 @@ class LogParser:
                            text, *module)
             if task_id in self.tasks.assessments:
                 name = self.tasks.assessments[task_id]
-                yield (task_id.split('@')[-1], 'openassessment', name, *module)
+                yield (get_id(task_id), 'openassessment', name, *module)
 
     def get_content(self):
         for (content_type, content) in self.content.content.items():
             for content_id in content:
                 module = self.modules.get_content_module(content_id)
-                yield (content_id, content_type, 'NA', *module)
+                if module:
+                    yield (content_id, content_type, 'NA', *module)
