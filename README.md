@@ -28,16 +28,23 @@
 
         `course_id+type@chapter+block@block_id;...;Название_модуля`
 
+    1. Файл ответов студентов
+
+        Файл имеет текстовый формат. Строки выглядят следующим образом:
+
+        `1;course_id+type@problem+block@block_id;block_id_4_1;user_id;username;answer_time;correct;...;question;process_time`
+
 ### Запуск
 
 1. Запустить парсер
 
     ```
-    $ python main.py --logs ../data/logs --course ../data/course csv
+    $ python main.py --logs ../data/logs --course ../data/course --answers ../data/answers csv
     ```
 
     * Файл `../data/logs` — лог-файл EdX (в текстовом формате)
     * Файл `../data/course` — файл структуры курсов (в текстовом формате). Может отсутствовать.
+    * Файл `../data/answers` — файл ответов студентов (в текстовом формате). Может отсутствовать.
 
 1. Результатом работы будут файлы `csv{1..5}.csv` в текущем каталоге
 
@@ -45,7 +52,7 @@
 
 Для изменения каталога вывода результата его нужно передать последним аргументом при запуске:
 ```
-$ python main.py --logs ../data/logs --course ../data/course my/catalog/
+$ python main.py --logs ../data/logs --course ../data/course --answers ../data/answers my/catalog/
 ```
 
 Результатом будут файлы `my/catalog/csv{1..5}.csv`.
