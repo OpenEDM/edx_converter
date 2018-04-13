@@ -3,169 +3,12 @@ import csv
 import json
 import logging
 import re
-from datetime import datetime
 
-import utils
-from utils import get_item, get_items
+from models import Users, Tasks, Modules, Content
+from utils import get_item, get_items, convert_datetime, get_id, Registry
 
 
 __all__ = ['LogParser']
-
-
-MODULE_URL = re.compile(r'([^#?]*/)')
-TASK_TYPES = ('type@problem', 'type@openassessment')
-
-
-def convert_datetime(timestr):
-    return datetime.strptime(
-        timestr.split('.')[0],
-        '%Y-%m-%dT%H:%M:%S').strftime('%d.%m.%Y %H:%M:%S')
-
-
-def normalize_module_url(url):
-    return (MODULE_URL.findall(url) or [''])[0]
-
-
-def get_id(edx_id):
-    return edx_id.split('@')[-1]
-
-
-def get_module_id(url):
-    return list(filter(None, url.split('/')))[-2]
-
-
-def iscollection(type_):
-    return isinstance(type_, (tuple, list, set, frozenset))
-
-
-class Registry:
-    _NULL = object()
-
-    def __init__(self):
-        self.processors = []
-        self.default = lambda obj, item: None
-
-    def add(self, **kwargs):
-        def wrapper(func):
-            if kwargs:
-                self.processors.append(({
-                    key: (value if iscollection(value) else [value])
-                    for (key, value) in kwargs.items()
-                }, func))
-            else:
-                self.default = func
-            return func
-        return wrapper
-
-    @staticmethod
-    def check_item(item, kwargs):
-        for (key, values) in kwargs.items():
-            if item.get(key, Registry._NULL) not in values:
-                return False
-        return True
-
-    def __call__(self, obj, item):
-        for (kwargs, func) in self.processors:
-            if Registry.check_item(item, kwargs):
-                return func(obj, item)
-        return self.default(obj, item)
-
-
-class Users:
-    def __init__(self):
-        self.times = collections.defaultdict(
-            lambda: collections.defaultdict(list))
-        self.submits = collections.defaultdict(
-            lambda: collections.defaultdict(list))
-        self.pr_submits = {}
-        self.assessments = collections.defaultdict(list)
-        self.viewed_content = collections.defaultdict(set)
-
-    def post_solution(self, user_id, problem_id, time):
-        self.times[user_id][problem_id].append(time)
-
-    def score_task(self, user_id, problem_id, subtask_id, correct):
-        time = (self.times[user_id][problem_id] or [None])[-1]
-        self.submits[user_id][subtask_id].append((time, int(correct)))
-
-    def create_submission(self, submission_id, user_id, problem_id):
-        self.pr_submits[submission_id] = (user_id, problem_id)
-
-    def assess(self, submission_id, reviewer, score, max_score):
-        self.assessments[submission_id].append((reviewer, score, max_score))
-
-    def view_content(self, user_id, content_id):
-        self.viewed_content[user_id].add(content_id)
-
-
-class Tasks:
-    def __init__(self):
-        self.tasks = collections.defaultdict(set)
-        self.subtask_text = utils.NonEmptyDict()
-        self.subtask_type = utils.NonEmptyDict()
-        self.assessments = utils.NonEmptyDict()
-
-    def add_task(self, problem_id, subtask_id, text, type_):
-        self.tasks[problem_id].add(subtask_id)
-        self.subtask_text[subtask_id] = text
-        self.subtask_type[subtask_id] = type_
-
-    def add_assessment(self, problem_id, name):
-        self.assessments[problem_id] = name
-
-
-def course_parser(courses):
-    for (i, item) in enumerate(csv.reader(courses, delimiter=';')):
-        if len(item) < 2:
-            logging.warning('Invalid line %d in course file', i)
-            continue
-
-        (chapter, *middle, name) = item
-        yield (get_id(chapter), name.strip())
-
-
-class Modules:
-    def __init__(self, course):
-        self.modules = collections.OrderedDict(course_parser(course))
-        self.tasks = utils.NonEmptyDict()
-        self.content = utils.NonEmptyDict()
-        self.module_index = {}
-
-    def add_task(self, link, problem_id):
-        link = get_module_id(normalize_module_url(link))
-        self.tasks[problem_id] = link
-
-    def add_content(self, link, content_id):
-        link = get_module_id(normalize_module_url(link))
-        self.content[content_id] = link
-
-    def get_task_module(self, problem_id):
-        return self.module_index.get(self.tasks[problem_id], None)
-
-    def get_content_module(self, content_id):
-        return self.module_index.get(self.content[content_id], None)
-
-    def create_index(self):
-        used = set(self.tasks.values()) | set(self.content.values())
-        if self.modules:
-            for (moduleid, name) in self.modules.items():
-                if moduleid in used:
-                    self._add_to_index(moduleid, name)
-        else:
-            for moduleid in used:
-                self._add_to_index(moduleid, '')
-
-    def _add_to_index(self, moduleid, name):
-        self.module_index[moduleid] = (
-            moduleid, len(self.module_index) + 1, name or 'NA')
-
-
-class Content:
-    def __init__(self):
-        self.content = collections.defaultdict(set)
-
-    def add_content(self, content_type, content_id):
-        self.content[content_type].add(content_id)
 
 
 class LogParser:
@@ -227,14 +70,16 @@ class LogParser:
             for score in scores)
         self.users.assess(submission_id, user_id, points, max_points)
 
-    def __init__(self, log, course):
+    def __init__(self, log, course, answers):
         self.users = Users()
         self.tasks = Tasks()
-        self.modules = Modules(course)
+        self.modules = Modules()
         self.content = Content()
 
         self._parse(log)
-        self.modules.create_index()
+
+        for item in (self.users, self.tasks, self.modules, self.content):
+            item.update_data(course, answers)
 
     def _parse(self, log):
         for (i, line) in enumerate(log):
