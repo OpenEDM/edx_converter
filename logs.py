@@ -105,7 +105,7 @@ class LogParser:
     def get_course_info(self):
         return {
             'short_name': self.course_name,
-            'long_name': self.course_name
+            'long_name': self.course_name.replace('_', ' ')
         }
 
     def get_student_solutions(self, user_id=None):
