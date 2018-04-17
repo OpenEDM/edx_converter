@@ -14,8 +14,15 @@ __all__ = ['LogParser']
 class LogParser:
     handler = Registry()
 
+    def _update_course(self, item):
+        course_id = get_item(item, 'context.course_id').split(':', 1)[-1]
+        course_id = course_id.replace('+', '_')
+        if course_id:
+            self.course_name = course_id
+
     @handler.add(event_type=['load_video', 'edx.video.loaded'])
     def _load_video(self, item):
+        self._update_course(item)
         video_id = get_item(json.loads(get_item(item, 'event')), 'id')
         page = get_item(item, 'page')
         self.content.add_content('video', video_id)
@@ -23,12 +30,14 @@ class LogParser:
 
     @handler.add(event_type=['play_video', 'edx.video.played'])
     def _play_video(self, item):
+        self._update_course(item)
         user_id = get_item(item, 'context.user_id')
         video_id = get_item(json.loads(get_item(item, 'event')), 'id')
         self.users.view_content(user_id, video_id)
 
     @handler.add(event_type='problem_check', event_source='server')
     def _problem_check_server(self, item):
+        self._update_course(item)
         (problem_id, user_id) = get_items(
             item, ['event.problem_id', 'context.user_id'])
         subtasks = get_item(item, 'event.submission', type_=dict)
@@ -41,6 +50,7 @@ class LogParser:
 
     @handler.add(event_type='edx.grades.problem.submitted')
     def _problem_submitted(self, item):
+        self._update_course(item)
         (user_id, problem_id, page, time) = get_items(
             item, ['context.user_id', 'event.problem_id', 'referer', 'time'])
         self.modules.add_task(page, problem_id)
@@ -48,6 +58,7 @@ class LogParser:
 
     @handler.add(event_type='openassessmentblock.create_submission')
     def _create_submission(self, item):
+        self._update_course(item)
         (submission_id, task_id, user_id, name, page) = get_items(
             item, ['event.submission_uuid', 'context.module.usage_key',
                    'context.user_id', 'context.module.display_name',
@@ -60,6 +71,7 @@ class LogParser:
                              'openassessmentblock.peer_assess',
                              'openassessmentblock.staff_assess'])
     def _assess_submission(self, item):
+        self._update_course(item)
         (submission_id, user_id) = get_items(
             item, ['event.submission_uuid', 'context.user_id'])
         scores = get_item(item, 'event.parts', type_=list)
@@ -71,6 +83,7 @@ class LogParser:
         self.users.assess(submission_id, user_id, points, max_points)
 
     def __init__(self, log, course, answers):
+        self.course_name = ''
         self.users = Users()
         self.tasks = Tasks()
         self.modules = Modules()
@@ -88,6 +101,12 @@ class LogParser:
                 LogParser.handler(self, item)
             except Exception as e:
                 logging.warning('Error on process entry, line %d: %s', i, e)
+
+    def get_course_info(self):
+        return {
+            'short_name': self.course_name,
+            'long_name': self.course_name
+        }
 
     def get_student_solutions(self, user_id=None):
         if user_id is None:

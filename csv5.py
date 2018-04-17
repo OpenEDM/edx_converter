@@ -1,6 +1,7 @@
 import abc
 import contextlib
 import csv
+import json
 import logging
 import operator
 
@@ -147,3 +148,6 @@ def process_all_csvs(prefix, encoding, parser):
     for processor in (CSV1, CSV2, CSV3, CSV4, CSV5):
         with processor(prefix, encoding) as p:
             p.process(parser)
+
+    with open(prefix + 'course.json', 'w', encoding=encoding) as f:
+        json.dump(parser.get_course_info(), f)

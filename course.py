@@ -1,8 +1,7 @@
-import collections
 import csv
 import logging
 
-from utils import get_id
+import utils
 
 
 __all__ = ['CourseParser']
@@ -12,7 +11,7 @@ class CourseParser:
     TYPES = ('type@problem', 'type@openassessment', 'type@video')
 
     def __init__(self, course):
-        self.modules = collections.OrderedDict()
+        self.modules = utils.NonEmptyOrderedDict()
         self.content = {}
         self._parse(course)
 
@@ -23,7 +22,7 @@ class CourseParser:
                 continue
 
             (chapter, *middle, name) = item
-            module_id = get_id(chapter)
+            module_id = utils.get_id(chapter)
             self.modules[module_id] = name.strip()
 
             for item in middle:

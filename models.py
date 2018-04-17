@@ -128,7 +128,7 @@ class Content(BaseModel):
         self.content[content_type].add(content_id)
 
     def update_data(self, course, answers):
-        for (content_id, module_id) in course.content.items():
+        for (content_id, _) in course.content.items():
             item_id = utils.get_id(content_id)
             if 'type@video' in content_id:
                 self.add_content('video', item_id)

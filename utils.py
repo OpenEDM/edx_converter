@@ -1,4 +1,4 @@
-import contextlib
+import collections
 from datetime import datetime
 
 
@@ -28,23 +28,31 @@ def iscollection(type_):
     return isinstance(type_, (tuple, list, set, frozenset))
 
 
-class NonEmptyDict(dict):
+class NonEmptyMixin:
     def __setitem__(self, key, value):
         if value or (key not in self):
             super().__setitem__(key, value)
+
+
+class NonEmptyDict(NonEmptyMixin, dict):
+    pass
+
+
+class NonEmptyOrderedDict(NonEmptyMixin, collections.OrderedDict):
+    pass
 
 
 class Registry:
     _NULL = object()
 
     def __init__(self):
-        self.processors = []
+        self.handlers = []
         self.default = lambda obj, item: None
 
     def add(self, **kwargs):
         def wrapper(func):
             if kwargs:
-                self.processors.append(({
+                self.handlers.append(({
                     key: (value if iscollection(value) else [value])
                     for (key, value) in kwargs.items()
                 }, func))
@@ -61,7 +69,7 @@ class Registry:
         return True
 
     def __call__(self, obj, item):
-        for (kwargs, func) in self.processors:
+        for (kwargs, func) in self.handlers:
             if Registry.check_item(item, kwargs):
                 return func(obj, item)
         return self.default(obj, item)

@@ -47,8 +47,8 @@ def main():
 
 
 if __name__ == '__main__':
-    #try:
-    sys.exit(main())
-    #except Exception as e:
-    #    print(e, file=sys.stderr)
-    #    sys.exit(1)
+    try:
+        sys.exit(main())
+    except Exception as e:
+        print(e, file=sys.stderr)
+        sys.exit(1)
