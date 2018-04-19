@@ -4,17 +4,32 @@ import csv
 import json
 import logging
 import operator
+import os.path
 
 
 __all__ = ['process_all_csvs']
 
 
-class BaseCSV(metaclass=abc.ABCMeta):
+class BaseProcessor(metaclass=abc.ABCMeta):
+    def __init__(self, filename, encoding):
+        self._file = open(filename, mode='w', encoding=encoding)
+
+    @abc.abstractmethod
+    def process(self, parser):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        self._file.close()
+
+
+class BaseCSVProcessor(BaseProcessor):
     COLUMNS = []
 
     def __init__(self, prefix, index, encoding):
-        self._file = open('{}{}.csv'.format(prefix, index),
-                          'w', encoding=encoding)
+        super().__init__('{}{}.csv'.format(prefix, index), encoding)
         self._csv = csv.writer(self._file, delimiter=';')
         self._csv.writerow(map(operator.itemgetter(0), self.COLUMNS))
 
@@ -29,16 +44,6 @@ class BaseCSV(metaclass=abc.ABCMeta):
     def writeiter(self, iterable):
         for item in iterable:
             self.write(*item)
-
-    @abc.abstractmethod
-    def process(self, parser):
-        pass
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc_info):
-        self._file.close()
 
 
 class Checkers:
@@ -87,7 +92,7 @@ class Items:
     TIME = ('time', Checkers.nonempty)
 
 
-class CSV1(BaseCSV):
+class CSV1(BaseCSVProcessor):
     COLUMNS = [
         Items.USER_ID, Items.ITEM_ID, Items.CORRECT, Items.TIME]
 
@@ -98,7 +103,7 @@ class CSV1(BaseCSV):
         self.writeiter(parser.get_student_solutions())
 
 
-class CSV2(BaseCSV):
+class CSV2(BaseCSVProcessor):
     COLUMNS = [
         Items.ITEM_ID, Items.ITEM_TYPE, Items.ITEM_NAME,
         Items.MODULE_ID, Items.MODULE_ORDER, Items.MODULE_NAME]
@@ -110,7 +115,7 @@ class CSV2(BaseCSV):
         self.writeiter(parser.get_tasks())
 
 
-class CSV3(BaseCSV):
+class CSV3(BaseCSVProcessor):
     COLUMNS = [Items.USER_ID, Items.CONTENT_ID, Items.VIEWED]
 
     def __init__(self, prefix, encoding):
@@ -120,7 +125,7 @@ class CSV3(BaseCSV):
         self.writeiter(parser.get_student_content())
 
 
-class CSV4(BaseCSV):
+class CSV4(BaseCSVProcessor):
     COLUMNS = [
         Items.CONTENT_ID, Items.CONTENT_TYPE, Items.CONTENT_NAME,
         Items.MODULE_ID, Items.MODULE_ORDER, Items.MODULE_NAME]
@@ -132,7 +137,7 @@ class CSV4(BaseCSV):
         self.writeiter(parser.get_content())
 
 
-class CSV5(BaseCSV):
+class CSV5(BaseCSVProcessor):
     COLUMNS = [
         Items.USER_ID, Items.ITEM_ID, Items.REVIEWER_ID,
         Items.SCORE, Items.MAX_SCORE]
@@ -144,10 +149,16 @@ class CSV5(BaseCSV):
         self.writeiter(parser.get_assessments())
 
 
+class CourseInfoJSON(BaseProcessor):
+    def __init__(self, prefix, encoding):
+        super().__init__(
+            os.path.join(os.path.dirname(prefix), 'course.json'), encoding)
+
+    def process(self, parser):
+        json.dump(parser.get_course_info(), self._file)
+
+
 def process_all_csvs(prefix, encoding, parser):
-    for processor in (CSV1, CSV2, CSV3, CSV4, CSV5):
+    for processor in (CSV1, CSV2, CSV3, CSV4, CSV5, CourseInfoJSON):
         with processor(prefix, encoding) as p:
             p.process(parser)
-
-    with open(prefix + 'course.json', 'w', encoding=encoding) as f:
-        json.dump(parser.get_course_info(), f)
