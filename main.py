@@ -4,8 +4,8 @@ import argparse
 import os.path
 import sys
 
-from gradereport import GradeReportParser
-from ora import ORAParser
+from course import CourseParser
+from answers import AnswersParser
 from logs import LogParser
 from csv5 import process_all_csvs
 
@@ -14,11 +14,9 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--encoding', type=str, default='utf8', help='Files encoding')
-    parser.add_argument(
-        '--threshold', type=float, default=0.7, help='Score threshold')
     parser.add_argument('--logs', type=str, required=True, help='Log file')
-    parser.add_argument('--grade', type=str, help='Grade report')
-    parser.add_argument('--ora', type=str, help='ORA data')
+    parser.add_argument('--course', type=str, help='Course structure file')
+    parser.add_argument('--answers', type=str, help='Student answers file')
     parser.add_argument('output', type=str, help='Output csv prefix')
     return parser.parse_args()
 
@@ -26,26 +24,26 @@ def parse_args():
 def main():
     params = parse_args()
 
-    if params.grade:
-        with open(params.grade, encoding=params.encoding) as f:
-            grade_report = GradeReportParser(f, params.threshold)
+    if params.course:
+        with open(params.course, encoding=params.encoding) as coursefile:
+            course = CourseParser(coursefile)
     else:
-        grade_report = GradeReportParser(None, params.threshold)
+        course = CourseParser([])
 
-    if params.ora:
-        with open(params.ora, encoding=params.encoding) as f:
-            ora_report = ORAParser(f)
+    if params.answers:
+        with open(params.answers, encoding=params.encoding) as answersfile:
+            answers = AnswersParser(answersfile)
     else:
-        ora_report = ORAParser(None)
+        answers = AnswersParser([])
 
-    with open(params.logs, encoding=params.encoding) as f:
-        logs = LogParser(f)
+    with open(params.logs, encoding=params.encoding) as logfile:
+        parser = LogParser(logfile, course, answers)
 
     if os.path.isdir(params.output):
         params.output = os.path.join(params.output, 'csv')
 
     process_all_csvs(
-        params.output, params.encoding, logs, grade_report, ora_report)
+        params.output, params.encoding, parser)
 
 
 if __name__ == '__main__':

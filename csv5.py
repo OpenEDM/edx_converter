@@ -1,19 +1,35 @@
 import abc
 import contextlib
 import csv
+import json
 import logging
 import operator
+import os.path
 
 
 __all__ = ['process_all_csvs']
 
 
-class BaseCSV(metaclass=abc.ABCMeta):
+class BaseProcessor(metaclass=abc.ABCMeta):
+    def __init__(self, filename, encoding):
+        self._file = open(filename, mode='w', encoding=encoding)
+
+    @abc.abstractmethod
+    def process(self, parser):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        self._file.close()
+
+
+class BaseCSVProcessor(BaseProcessor):
     COLUMNS = []
 
     def __init__(self, prefix, index, encoding):
-        self._file = open('{}{}.csv'.format(prefix, index),
-                          'w', encoding=encoding)
+        super().__init__('{}{}.csv'.format(prefix, index), encoding)
         self._csv = csv.writer(self._file, delimiter=';')
         self._csv.writerow(map(operator.itemgetter(0), self.COLUMNS))
 
@@ -28,16 +44,6 @@ class BaseCSV(metaclass=abc.ABCMeta):
     def writeiter(self, iterable):
         for item in iterable:
             self.write(*item)
-
-    @abc.abstractmethod
-    def process(self, logs, grade_report, ora):
-        pass
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc_info):
-        self._file.close()
 
 
 class Checkers:
@@ -86,18 +92,18 @@ class Items:
     TIME = ('time', Checkers.nonempty)
 
 
-class CSV1(BaseCSV):
+class CSV1(BaseCSVProcessor):
     COLUMNS = [
         Items.USER_ID, Items.ITEM_ID, Items.CORRECT, Items.TIME]
 
     def __init__(self, prefix, encoding):
         super().__init__(prefix, 1, encoding)
 
-    def process(self, logs, grade_report, ora):
-        self.writeiter(logs.get_student_solutions())
+    def process(self, parser):
+        self.writeiter(parser.get_student_solutions())
 
 
-class CSV2(BaseCSV):
+class CSV2(BaseCSVProcessor):
     COLUMNS = [
         Items.ITEM_ID, Items.ITEM_TYPE, Items.ITEM_NAME,
         Items.MODULE_ID, Items.MODULE_ORDER, Items.MODULE_NAME]
@@ -105,21 +111,21 @@ class CSV2(BaseCSV):
     def __init__(self, prefix, encoding):
         super().__init__(prefix, 2, encoding)
 
-    def process(self, logs, grade_report, ora):
-        self.writeiter(logs.get_tasks())
+    def process(self, parser):
+        self.writeiter(parser.get_tasks())
 
 
-class CSV3(BaseCSV):
+class CSV3(BaseCSVProcessor):
     COLUMNS = [Items.USER_ID, Items.CONTENT_ID, Items.VIEWED]
 
     def __init__(self, prefix, encoding):
         super().__init__(prefix, 3, encoding)
 
-    def process(self, logs, grade_report, ora):
-        self.writeiter(logs.get_student_content())
+    def process(self, parser):
+        self.writeiter(parser.get_student_content())
 
 
-class CSV4(BaseCSV):
+class CSV4(BaseCSVProcessor):
     COLUMNS = [
         Items.CONTENT_ID, Items.CONTENT_TYPE, Items.CONTENT_NAME,
         Items.MODULE_ID, Items.MODULE_ORDER, Items.MODULE_NAME]
@@ -127,11 +133,11 @@ class CSV4(BaseCSV):
     def __init__(self, prefix, encoding):
         super().__init__(prefix, 4, encoding)
 
-    def process(self, logs, grade_report, ora):
-        self.writeiter(logs.get_content())
+    def process(self, parser):
+        self.writeiter(parser.get_content())
 
 
-class CSV5(BaseCSV):
+class CSV5(BaseCSVProcessor):
     COLUMNS = [
         Items.USER_ID, Items.ITEM_ID, Items.REVIEWER_ID,
         Items.SCORE, Items.MAX_SCORE]
@@ -139,11 +145,20 @@ class CSV5(BaseCSV):
     def __init__(self, prefix, encoding):
         super().__init__(prefix, 5, encoding)
 
-    def process(self, logs, grade_report, ora):
-        self.writeiter(logs.get_assessments())
+    def process(self, parser):
+        self.writeiter(parser.get_assessments())
 
 
-def process_all_csvs(prefix, encoding, logs, grade_report, ora):
-    for processor in (CSV1, CSV2, CSV3, CSV4, CSV5):
+class CourseInfoJSON(BaseProcessor):
+    def __init__(self, prefix, encoding):
+        super().__init__(
+            os.path.join(os.path.dirname(prefix), 'course.json'), encoding)
+
+    def process(self, parser):
+        json.dump(parser.get_course_info(), self._file)
+
+
+def process_all_csvs(prefix, encoding, parser):
+    for processor in (CSV1, CSV2, CSV3, CSV4, CSV5, CourseInfoJSON):
         with processor(prefix, encoding) as p:
-            p.process(logs, grade_report, ora)
+            p.process(parser)
