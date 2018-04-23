@@ -18,21 +18,21 @@
 
 Парсер работает со следующими данными:
 
-    1. Лог-файл EdX
+1. Лог-файл EdX
 
-        Описание формата файла доступно по [ссылке](http://edx.readthedocs.io/projects/devdata/en/stable/internal_data_formats/tracking_logs.html).
+    Описание формата файла доступно по [ссылке](http://edx.readthedocs.io/projects/devdata/en/stable/internal_data_formats/tracking_logs.html).
 
-    1. Структура курсов
+1. Структура курсов
 
-        Файл имеет текстовый формат. Строки выглядят следующим образом:
+    Файл имеет текстовый формат. Строки выглядят следующим образом:
 
-        `course_id+type@chapter+block@block_id;...;Название_модуля`
+    `course_id+type@chapter+block@block_id;...;Название_модуля`
 
-    1. Файл ответов студентов
+1. Файл ответов студентов
 
-        Файл имеет текстовый формат. Строки выглядят следующим образом:
+    Файл имеет текстовый формат. Строки выглядят следующим образом:
 
-        `1;course_id+type@problem+block@block_id;block_id_4_1;user_id;username;answer_time;correct;...;question;process_time`
+    `1;course_id+type@problem+block@block_id;block_id_4_1;user_id;username;answer_time;correct;...;question;process_time`
 
 ### Запуск
 
