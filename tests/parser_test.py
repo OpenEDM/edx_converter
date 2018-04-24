@@ -20,7 +20,7 @@ class LogsTest(unittest.TestCase):
         report = LogParser(self.LOG, FakeCourse(
             modules=collections.OrderedDict([
                 ('m1', 'module 1'), ('m2', 'module 2')]),
-            content={}), FakeAnswers([]))
+            content={}), FakeAnswers([]), collections.defaultdict(str))
 
         self.assertSetEqual(
             set(report.get_student_solutions()),

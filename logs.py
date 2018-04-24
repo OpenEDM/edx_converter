@@ -15,10 +15,9 @@ class LogParser:
     handler = Registry()
 
     def _update_course(self, item):
-        course_id = get_item(item, 'context.course_id').split(':', 1)[-1]
-        course_id = course_id.replace('+', '_')
-        if course_id:
-            self.course_name = course_id
+        self.course_name = (
+            get_item(item, 'context.course_id').split(':', 1)[-1]
+            or self.course_name)
 
     @handler.add(event_type=['load_video', 'edx.video.loaded'])
     def _load_video(self, item):
@@ -82,7 +81,7 @@ class LogParser:
             for score in scores)
         self.users.assess(submission_id, user_id, points, max_points)
 
-    def __init__(self, log, course, answers):
+    def __init__(self, log, course, answers, courses):
         self.course_name = ''
         self.users = Users()
         self.tasks = Tasks()
@@ -93,6 +92,8 @@ class LogParser:
 
         for item in (self.users, self.tasks, self.modules, self.content):
             item.update_data(course, answers)
+
+        self.course_long_name = courses[self.course_name]
 
     def _parse(self, log):
         for (i, line) in enumerate(log):
@@ -105,7 +106,7 @@ class LogParser:
     def get_course_info(self):
         return {
             'short_name': self.course_name,
-            'long_name': self.course_name.replace('_', ' ')
+            'long_name': self.course_long_name
         }
 
     def get_student_solutions(self, user_id=None):
