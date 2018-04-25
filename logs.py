@@ -153,7 +153,7 @@ class LogParser:
                     yield (subtask, self.tasks.subtask_type[subtask],
                            text, *module)
             if task_id in self.tasks.assessments:
-                name = self.tasks.assessments[task_id]
+                name = self.tasks.assessments[task_id] or 'NA'
                 yield (get_id(task_id), 'openassessment', name, *module)
 
     def get_content(self):

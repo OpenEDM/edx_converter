@@ -94,9 +94,13 @@ class Modules(BaseModel):
         self.content[content_id] = link
 
     def get_task_module(self, problem_id):
+        if problem_id not in self.tasks:
+            return None
         return self.module_index.get(self.tasks[problem_id], None)
 
     def get_content_module(self, content_id):
+        if content_id not in self.content:
+            return None
         return self.module_index.get(self.content[content_id], None)
 
     def update_data(self, course, answers):
@@ -104,7 +108,7 @@ class Modules(BaseModel):
             if 'type@problem' in content_id:
                 self.add_task(module_id, content_id, False)
             elif 'type@video' in content_id:
-                self.add_content(module_id, content_id, False)
+                self.add_content(module_id, utils.get_id(content_id), False)
 
         used = set(self.tasks.values()) | set(self.content.values())
         if course.modules:
