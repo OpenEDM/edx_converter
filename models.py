@@ -35,8 +35,8 @@ class Users(BaseModel):
     def post_solution(self, user_id, problem_id, time):
         self.times[user_id][problem_id].append(time)
 
-    def score_task(self, user_id, problem_id, subtask_id, correct):
-        time = (self.times[user_id][problem_id] or [None])[-1]
+    def score_task(self, user_id, problem_id, subtask_id, correct, time=None):
+        time = (self.times[user_id][problem_id] or [time])[-1]
         self.submits[user_id][subtask_id].append((time, int(correct)))
 
     def create_submission(self, submission_id, user_id, problem_id):

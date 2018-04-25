@@ -37,15 +37,16 @@ class LogParser:
     @handler.add(event_type='problem_check', event_source='server')
     def _problem_check_server(self, item):
         self._update_course(item)
-        (problem_id, user_id) = get_items(
-            item, ['event.problem_id', 'context.user_id'])
+        (problem_id, user_id, time) = get_items(
+            item, ['event.problem_id', 'context.user_id', 'time'])
         subtasks = get_item(item, 'event.submission', type_=dict)
         for (subtask_id, subtask) in subtasks.items():
             (question, task_type) = get_items(
                 subtask, ['question', 'response_type'])
             correct = get_item(subtask, 'correct', type_=bool)
             self.tasks.add_task(problem_id, subtask_id, question, task_type)
-            self.users.score_task(user_id, problem_id, subtask_id, correct)
+            self.users.score_task(
+                user_id, problem_id, subtask_id, correct, time)
 
     @handler.add(event_type='edx.grades.problem.submitted')
     def _problem_submitted(self, item):

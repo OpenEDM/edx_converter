@@ -52,6 +52,10 @@ class Checkers:
         return bool(value)
 
     @staticmethod
+    def non_empty_or_none(value):
+        return bool(value) and value != 'None'
+
+    @staticmethod
     def zero_or_one(value):
         return str(value) in ('0', '1')
 
@@ -89,7 +93,7 @@ class Items:
 
     CORRECT = ('correct', Checkers.zero_or_one)
     VIEWED = ('viewed', Checkers.zero_or_one)
-    TIME = ('time', Checkers.nonempty)
+    TIME = ('time', Checkers.non_empty_or_none)
 
 
 class CSV1(BaseCSVProcessor):
