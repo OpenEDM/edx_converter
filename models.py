@@ -35,8 +35,8 @@ class Users(BaseModel):
     def post_solution(self, user_id, problem_id, time):
         self.times[user_id][problem_id].append(time)
 
-    def score_task(self, user_id, problem_id, subtask_id, correct):
-        time = (self.times[user_id][problem_id] or [None])[-1]
+    def score_task(self, user_id, problem_id, subtask_id, correct, time=None):
+        time = (self.times[user_id][problem_id] or [time])[-1]
         self.submits[user_id][subtask_id].append((time, int(correct)))
 
     def create_submission(self, submission_id, user_id, problem_id):
@@ -84,19 +84,27 @@ class Modules(BaseModel):
         self.module_index = {}
 
     def add_task(self, link, problem_id, normalize=True):
+        problem_id = utils.get_id(problem_id)
         if normalize:
             link = get_module_id(normalize_module_url(link))
         self.tasks[problem_id] = link
 
     def add_content(self, link, content_id, normalize=True):
+        content_id = utils.get_id(content_id)
         if normalize:
             link = get_module_id(normalize_module_url(link))
         self.content[content_id] = link
 
     def get_task_module(self, problem_id):
+        problem_id = utils.get_id(problem_id)
+        if problem_id not in self.tasks:
+            return None
         return self.module_index.get(self.tasks[problem_id], None)
 
     def get_content_module(self, content_id):
+        content_id = utils.get_id(content_id)
+        if content_id not in self.content:
+            return None
         return self.module_index.get(self.content[content_id], None)
 
     def update_data(self, course, answers):

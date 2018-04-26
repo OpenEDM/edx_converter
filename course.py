@@ -4,7 +4,25 @@ import logging
 import utils
 
 
-__all__ = ['CourseParser']
+__all__ = ['CourseParser', 'CoursesParser']
+
+
+class CoursesParser:
+    def __init__(self, courses):
+        self.courses = {}
+        self._parse(courses)
+
+    def _parse(self, courses):
+        for (i, item) in enumerate(csv.reader(courses, delimiter=';')):
+            if len(item) < 2:
+                logging.warning('Invalid line %d in course names file', i)
+                continue
+
+            (course_id, course_name) = item
+            self.courses[course_id] = course_name
+
+    def __getitem__(self, course_id):
+        return self.courses.get(course_id, course_id)
 
 
 class CourseParser:

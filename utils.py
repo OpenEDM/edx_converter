@@ -20,7 +20,7 @@ def get_items(data, items, *, type_=str):
 
 def convert_datetime(timestr):
     return datetime.strptime(
-        timestr.split('.')[0],
+        timestr.split('.')[0].split('+')[0],
         '%Y-%m-%dT%H:%M:%S').strftime('%d.%m.%Y %H:%M:%S')
 
 

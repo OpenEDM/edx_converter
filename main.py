@@ -4,7 +4,7 @@ import argparse
 import os.path
 import sys
 
-from course import CourseParser
+from course import CourseParser, CoursesParser
 from answers import AnswersParser
 from logs import LogParser
 from csv5 import process_all_csvs
@@ -13,10 +13,15 @@ from csv5 import process_all_csvs
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--encoding', type=str, default='utf8', help='Files encoding')
-    parser.add_argument('--logs', type=str, required=True, help='Log file')
-    parser.add_argument('--course', type=str, help='Course structure file')
-    parser.add_argument('--answers', type=str, help='Student answers file')
+        '-e', '--encoding', type=str, default='utf8', help='Files encoding')
+    parser.add_argument(
+        '-l', '--logs', type=str, required=True, help='Log file')
+    parser.add_argument(
+        '-c', '--course', type=str, help='Course structure file')
+    parser.add_argument(
+        '-a', '--answers', type=str, help='Student answers file')
+    parser.add_argument(
+        '-C', '--courses', type=str, help='Course names file')
     parser.add_argument('output', type=str, help='Output csv prefix')
     return parser.parse_args()
 
@@ -24,20 +29,21 @@ def parse_args():
 def main():
     params = parse_args()
 
-    if params.course:
-        with open(params.course, encoding=params.encoding) as coursefile:
-            course = CourseParser(coursefile)
-    else:
-        course = CourseParser([])
+    optional_data_source = [
+        (params.course, CourseParser),
+        (params.answers, AnswersParser),
+        (params.courses, CoursesParser)]
 
-    if params.answers:
-        with open(params.answers, encoding=params.encoding) as answersfile:
-            answers = AnswersParser(answersfile)
-    else:
-        answers = AnswersParser([])
+    optional_source = []
+    for (filename, parser) in optional_data_source:
+        if filename:
+            with open(filename, encoding=params.encoding) as file:
+                optional_source.append(parser(file))
+        else:
+            optional_source.append(parser([]))
 
     with open(params.logs, encoding=params.encoding) as logfile:
-        parser = LogParser(logfile, course, answers)
+        parser = LogParser(logfile, *optional_source)
 
     if os.path.isdir(params.output):
         params.output = os.path.join(params.output, 'csv')

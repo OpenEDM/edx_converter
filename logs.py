@@ -15,10 +15,9 @@ class LogParser:
     handler = Registry()
 
     def _update_course(self, item):
-        course_id = get_item(item, 'context.course_id').split(':', 1)[-1]
-        course_id = course_id.replace('+', '_')
-        if course_id:
-            self.course_name = course_id
+        self.course_name = (
+            get_item(item, 'context.course_id').split(':', 1)[-1]
+            or self.course_name)
 
     @handler.add(event_type=['load_video', 'edx.video.loaded'])
     def _load_video(self, item):
@@ -38,15 +37,16 @@ class LogParser:
     @handler.add(event_type='problem_check', event_source='server')
     def _problem_check_server(self, item):
         self._update_course(item)
-        (problem_id, user_id) = get_items(
-            item, ['event.problem_id', 'context.user_id'])
+        (problem_id, user_id, time) = get_items(
+            item, ['event.problem_id', 'context.user_id', 'time'])
         subtasks = get_item(item, 'event.submission', type_=dict)
         for (subtask_id, subtask) in subtasks.items():
             (question, task_type) = get_items(
                 subtask, ['question', 'response_type'])
             correct = get_item(subtask, 'correct', type_=bool)
             self.tasks.add_task(problem_id, subtask_id, question, task_type)
-            self.users.score_task(user_id, problem_id, subtask_id, correct)
+            self.users.score_task(
+                user_id, problem_id, subtask_id, correct, time)
 
     @handler.add(event_type='edx.grades.problem.submitted')
     def _problem_submitted(self, item):
@@ -82,7 +82,7 @@ class LogParser:
             for score in scores)
         self.users.assess(submission_id, user_id, points, max_points)
 
-    def __init__(self, log, course, answers):
+    def __init__(self, log, course, answers, courses):
         self.course_name = ''
         self.users = Users()
         self.tasks = Tasks()
@@ -93,6 +93,8 @@ class LogParser:
 
         for item in (self.users, self.tasks, self.modules, self.content):
             item.update_data(course, answers)
+
+        self.course_long_name = courses[self.course_name]
 
     def _parse(self, log):
         for (i, line) in enumerate(log):
@@ -105,7 +107,7 @@ class LogParser:
     def get_course_info(self):
         return {
             'short_name': self.course_name,
-            'long_name': self.course_name.replace('_', ' ')
+            'long_name': self.course_long_name
         }
 
     def get_student_solutions(self, user_id=None):
@@ -152,7 +154,7 @@ class LogParser:
                     yield (subtask, self.tasks.subtask_type[subtask],
                            text, *module)
             if task_id in self.tasks.assessments:
-                name = self.tasks.assessments[task_id]
+                name = self.tasks.assessments[task_id] or 'NA'
                 yield (get_id(task_id), 'openassessment', name, *module)
 
     def get_content(self):
