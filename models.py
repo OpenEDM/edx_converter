@@ -84,21 +84,25 @@ class Modules(BaseModel):
         self.module_index = {}
 
     def add_task(self, link, problem_id, normalize=True):
+        problem_id = utils.get_id(problem_id)
         if normalize:
             link = get_module_id(normalize_module_url(link))
         self.tasks[problem_id] = link
 
     def add_content(self, link, content_id, normalize=True):
+        content_id = utils.get_id(content_id)
         if normalize:
             link = get_module_id(normalize_module_url(link))
         self.content[content_id] = link
 
     def get_task_module(self, problem_id):
+        problem_id = utils.get_id(problem_id)
         if problem_id not in self.tasks:
             return None
         return self.module_index.get(self.tasks[problem_id], None)
 
     def get_content_module(self, content_id):
+        content_id = utils.get_id(content_id)
         if content_id not in self.content:
             return None
         return self.module_index.get(self.content[content_id], None)
@@ -108,7 +112,7 @@ class Modules(BaseModel):
             if 'type@problem' in content_id:
                 self.add_task(module_id, content_id, False)
             elif 'type@video' in content_id:
-                self.add_content(module_id, utils.get_id(content_id), False)
+                self.add_content(module_id, content_id, False)
 
         used = set(self.tasks.values()) | set(self.content.values())
         if course.modules:
