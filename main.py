@@ -4,10 +4,7 @@ import argparse
 import os.path
 import sys
 
-from course import CourseParser, CoursesParser
-from answers import AnswersParser
-from logs import LogParser
-from csv5 import process_all_csvs
+import converter
 
 
 def parse_args():
@@ -29,27 +26,12 @@ def parse_args():
 def main():
     params = parse_args()
 
-    optional_data_source = [
-        (params.course, CourseParser),
-        (params.answers, AnswersParser),
-        (params.courses, CoursesParser)]
-
-    optional_source = []
-    for (filename, parser) in optional_data_source:
-        if filename:
-            with open(filename, encoding=params.encoding) as file:
-                optional_source.append(parser(file))
-        else:
-            optional_source.append(parser([]))
-
-    with open(params.logs, encoding=params.encoding) as logfile:
-        parser = LogParser(logfile, *optional_source)
-
     if os.path.isdir(params.output):
         params.output = os.path.join(params.output, 'csv')
 
-    process_all_csvs(
-        params.output, params.encoding, parser)
+    converter.convert(
+        params.course, params.answers, params.courses, params.logs,
+        params.encoding, params.output)
 
 
 if __name__ == '__main__':

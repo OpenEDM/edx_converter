@@ -9,9 +9,9 @@ def get_id(edx_id):
 def get_item(data, item, *, type_=str):
     if '.' in item:
         (name, rest) = item.split('.', maxsplit=1)
-        return get_item(data.get(name, {}), rest, type_=type_)
+        return get_item((data or {}).get(name, {}), rest, type_=type_)
 
-    return type_(data.get(item, type_()))
+    return type_((data or {}).get(item, type_()))
 
 
 def get_items(data, items, *, type_=str):

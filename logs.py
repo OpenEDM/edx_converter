@@ -16,8 +16,8 @@ class LogParser:
 
     def _update_course(self, item):
         self.course_name = (
-            get_item(item, 'context.course_id').split(':', 1)[-1]
-            or self.course_name)
+            get_item(item, 'context.course_id').split(':', 1)[-1] or
+            self.course_name)
 
     @handler.add(event_type=['load_video', 'edx.video.loaded'])
     def _load_video(self, item):
@@ -99,10 +99,11 @@ class LogParser:
     def _parse(self, log):
         for (i, line) in enumerate(log):
             try:
-                item = json.loads(line.split(':', maxsplit=1)[-1])
+                item = json.loads(re.findall(r'.*?({.*})', line)[-1])
                 LogParser.handler(self, item)
             except Exception as e:
-                logging.warning('Error on process entry, line %d: %s', i, e)
+                logging.warning(
+                    'Error on process entry, line %d: %s', i + 1, e)
 
     def get_course_info(self):
         return {
