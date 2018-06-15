@@ -94,7 +94,8 @@ class LogParser:
         for item in (self.users, self.tasks, self.modules, self.content):
             item.update_data(course, answers)
 
-        self.course_long_name = courses[self.course_name]
+        self.course_long_name = courses.get_name(self.course_name)
+        self.roo_id = courses.get_ro_id(self.course_name)
 
     def _parse(self, log):
         for (i, line) in enumerate(log):
@@ -108,7 +109,9 @@ class LogParser:
     def get_course_info(self):
         return {
             'short_name': self.course_name,
-            'long_name': self.course_long_name
+            'long_name': self.course_long_name,
+            'roo_course_id': self.roo_id
+
         }
 
     def get_student_solutions(self, user_id=None):
