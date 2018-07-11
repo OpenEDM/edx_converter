@@ -51,9 +51,15 @@ class LogParser:
     @handler.add(event_type='edx.grades.problem.submitted')
     def _problem_submitted(self, item):
         self._update_course(item)
-        (user_id, problem_id, page, time) = get_items(
-            item, ['context.user_id', 'event.problem_id', 'referer', 'time'])
-        self.modules.add_task(page, problem_id)
+        try:
+            (user_id, problem_id, page, time) = get_items(
+                item, ['context.user_id', 'event.problem_id', 'referer', 'time'])
+            self.modules.add_task(page, problem_id)
+        except:
+            (user_id, problem_id, page, time) = get_items(
+                item, ['context.user_id', 'event.problem_id', 'context.path', 'time'])
+            self.modules.add_task(page, problem_id)
+
         self.users.post_solution(user_id, problem_id, convert_datetime(time))
 
     @handler.add(event_type='openassessmentblock.create_submission')

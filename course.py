@@ -24,7 +24,8 @@ class CoursesParser:
             if len(item) >= 3:
                 roo_id = item[2]
                 self.roo_ids[course_id] = roo_id
-            self.roo_ids[course_id] = course_name
+            self.names[course_id] = course_name
+
 
     def get_name(self, course_id):
         return self.names.get(course_id, course_id)
